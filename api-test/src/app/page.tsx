@@ -22,35 +22,62 @@ const HomePage: React.FC = () => {
       try {
         const apiKey =
           "WSCw0k0JOf7SYhiwyAZ1grsvn9QQB3nA%2FPD53LggeDN9G5%2BTQgf46EeKYp%2FLn7jhEsTlHQAht6ahaYGG%2FGwHfg%3D%3D";
-        const apiUrl = `http://apis.data.go.kr/B551011/KorService1/areaBasedList1?numOfRows=12&pageNo=1&MobileOS=ETC&MobileApp=AppTest&ServiceKey=${apiKey}&listYN=Y&arrange=A&contentTypeId=15&areaCode=1&sigunguCode=&cat1=A02&cat2=A0207&cat3=`;
+        const baseUrl = `http://apis.data.go.kr/B551011/KorService1/areaBasedList1?numOfRows=12&pageNo=1&MobileOS=ETC&MobileApp=AppTest&ServiceKey=${apiKey}&listYN=Y&arrange=A&contentTypeId=15&areaCode=1&sigunguCode=&cat1=A02&cat2=A0208&cat3=A02080200`;
+        const dateUrl = `http://apis.data.go.kr/B551011/KorService1/searchFestival1?eventStartDate=20240717&eventEndDate=20240717&ServiceKey=${apiKey}&listYN=Y&MobileOS=ETC&MobileApp=AppTest&arrange=A`;
 
-        const res = await fetch(apiUrl);
+        const getTotalCount = async (url: string) => {
+          const res = await fetch(`${url}&numOfRows=1&pageNo=1`);
+          const text = await res.text();
+          const parser = new xml2js.Parser();
+          const result = await parser.parseStringPromise(text);
+          return parseInt(result.response.body[0].totalCount[0], 10);
+        };
 
-        const text = await res.text();
-        console.log("응답 내용:", text); // 응답 내용을 출력하여 확인
+        const totalAreaBasedCount = await getTotalCount(baseUrl);
+        const totalFestivalCount = await getTotalCount(dateUrl);
 
-        // XML 응답을 JSON으로 변환
-        const parser = new xml2js.Parser();
-        parser.parseString(text, (err, result) => {
-          if (err) {
-            throw new Error("Failed to parse XML");
+        const numOfRows = 12;
+        const totalAreaBasedPages = Math.ceil(totalAreaBasedCount / numOfRows);
+        const totalFestivalPages = Math.ceil(totalFestivalCount / numOfRows);
+
+        const fetchAllPages = async (url: string, totalPages: number) => {
+          const allData: any[] = [];
+          for (let page = 1; page <= totalPages; page++) {
+            const res = await fetch(
+              `${url}&numOfRows=${numOfRows}&pageNo=${page}`
+            );
+            const text = await res.text();
+            const parser = new xml2js.Parser();
+            const result = await parser.parseStringPromise(text);
+            const items = result.response.body[0].items[0].item;
+            allData.push(...items);
           }
+          return allData;
+        };
 
-          const data = result.response.body[0].items[0].item.map(
-            (item: any) => ({
-              contentid: item.contentid[0],
-              title: item.title[0],
-              addr1: item.addr1[0],
-              firstimage: item.firstimage
-                ? item.firstimage[0].replace(/<\/?firstimage>/g, "")
-                : null,
-              mapx: item.mapx[0],
-              mapy: item.mapy[0],
-            })
-          );
+        const areaBasedItems = await fetchAllPages(
+          baseUrl,
+          totalAreaBasedPages
+        );
+        const festivalItems = await fetchAllPages(dateUrl, totalFestivalPages);
 
-          setTours(data);
-        });
+        const festivalContentIds = new Set(
+          festivalItems.map((item: any) => item.contentid[0])
+        );
+
+        const filteredTours = areaBasedItems
+          .filter((item: any) => festivalContentIds.has(item.contentid[0]))
+          .map((item: any) => ({
+            contentid: item.contentid[0],
+            title: item.title[0],
+            addr1: item.addr1[0],
+            firstimage: item.firstimage
+              ? item.firstimage[0].replace(/<\/?firstimage>/g, "")
+              : null,
+            mapx: item.mapx[0],
+            mapy: item.mapy[0],
+          }));
+        setTours(filteredTours);
       } catch (error) {
         if (error instanceof Error) {
           setError(error.message);
@@ -71,35 +98,40 @@ const HomePage: React.FC = () => {
       document.head.appendChild(script);
 
       script.onload = () => {
-        kakao.maps.load(() => {
-          const mapContainer = document.getElementById("map");
-          const mapOption = {
-            center: new kakao.maps.LatLng(37.5665, 126.978), // 지도의 중심좌표
-            level: 5,
-          };
+        if (window.kakao && window.kakao.maps) {
+          window.kakao.maps.load(() => {
+            const mapContainer = document.getElementById("map");
+            const mapOption = {
+              center: new window.kakao.maps.LatLng(37.5665, 126.978), // 지도의 중심좌표
+              level: 5,
+            };
 
-          const map = new kakao.maps.Map(mapContainer, mapOption);
+            const map = new window.kakao.maps.Map(mapContainer, mapOption);
 
-          tours.forEach((tour) => {
-            const markerPosition = new kakao.maps.LatLng(tour.mapy, tour.mapx);
-            const marker = new kakao.maps.Marker({
-              position: markerPosition,
+            tours.forEach((tour) => {
+              const markerPosition = new window.kakao.maps.LatLng(
+                tour.mapy,
+                tour.mapx
+              );
+              const marker = new window.kakao.maps.Marker({
+                position: markerPosition,
+              });
+
+              const infowindow = new window.kakao.maps.InfoWindow({
+                content: `<div style="padding:5px;">${tour.title}</div>`,
+              });
+
+              window.kakao.maps.event.addListener(marker, "mouseover", () =>
+                infowindow.open(map, marker)
+              );
+              window.kakao.maps.event.addListener(marker, "mouseout", () =>
+                infowindow.close()
+              );
+
+              marker.setMap(map);
             });
-
-            const infowindow = new kakao.maps.InfoWindow({
-              content: `<div style="padding:5px;">${tour.title}</div>`,
-            });
-
-            kakao.maps.event.addListener(marker, "mouseover", () =>
-              infowindow.open(map, marker)
-            );
-            kakao.maps.event.addListener(marker, "mouseout", () =>
-              infowindow.close()
-            );
-
-            marker.setMap(map);
           });
-        });
+        }
       };
 
       return () => {
