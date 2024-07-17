@@ -9,11 +9,9 @@ interface Tour {
   title: string;
   addr1: string;
   firstimage?: string;
+  mapx: string;
+  mapy: string;
 }
-//apis.data.go.kr/B551011/KorService1/searchStay1?areaCode=&sigunguCode=&ServiceKey=인증키&listYN=Y&MobileOS=ETC&MobileApp=AppTest&arrange=A&numOfRows=12&pageNo=1
-//apis.data.go.kr/B551011/KorService1/searchStay1?areaCode=1&sigunguCode=&ServiceKey=인증키&listYN=Y&MobileOS=ETC&MobileApp=AppTest&arrange=A&numOfRows=12&pageNo=1
-//apis.data.go.kr/B551011/KorService1/searchStay1?areaCode=6&sigunguCode=&ServiceKey=인증키&listYN=Y&MobileOS=ETC&MobileApp=AppTest&arrange=A&numOfRows=12&pageNo=1
-//apis.data.go.kr/B551011/KorService1/searchStay1?areaCode=6&sigunguCode=16&ServiceKey=인증키&listYN=Y&MobileOS=ETC&MobileApp=AppTest&arrange=A&numOfRows=12&pageNo=1
 
 const HomePage: React.FC = () => {
   const [tours, setTours] = useState<Tour[]>([]);
@@ -46,6 +44,8 @@ const HomePage: React.FC = () => {
               firstimage: item.firstimage
                 ? item.firstimage[0].replace(/<\/?firstimage>/g, "")
                 : null,
+              mapx: item.mapx[0],
+              mapy: item.mapy[0],
             })
           );
 
@@ -62,6 +62,51 @@ const HomePage: React.FC = () => {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (tours.length > 0) {
+      const script = document.createElement("script");
+      script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=e409d8f7a4d753818d9030b2b6e32840&autoload=false`;
+      script.async = true;
+      document.head.appendChild(script);
+
+      script.onload = () => {
+        kakao.maps.load(() => {
+          const mapContainer = document.getElementById("map");
+          const mapOption = {
+            center: new kakao.maps.LatLng(37.5665, 126.978), // 지도의 중심좌표
+            level: 5,
+          };
+
+          const map = new kakao.maps.Map(mapContainer, mapOption);
+
+          tours.forEach((tour) => {
+            const markerPosition = new kakao.maps.LatLng(tour.mapy, tour.mapx);
+            const marker = new kakao.maps.Marker({
+              position: markerPosition,
+            });
+
+            const infowindow = new kakao.maps.InfoWindow({
+              content: `<div style="padding:5px;">${tour.title}</div>`,
+            });
+
+            kakao.maps.event.addListener(marker, "mouseover", () =>
+              infowindow.open(map, marker)
+            );
+            kakao.maps.event.addListener(marker, "mouseout", () =>
+              infowindow.close()
+            );
+
+            marker.setMap(map);
+          });
+        });
+      };
+
+      return () => {
+        document.head.removeChild(script);
+      };
+    }
+  }, [tours]);
 
   return (
     <div>
@@ -86,6 +131,10 @@ const HomePage: React.FC = () => {
           ))}
         </ul>
       )}
+      <div
+        id="map"
+        style={{ width: "100%", height: "500px", marginTop: "20px" }}
+      ></div>
     </div>
   );
 };
