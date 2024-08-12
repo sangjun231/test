@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import xml2js from "xml2js"; // xml2js 라이브러리 임포트
+import xml2js from "xml2js";
 
 interface Tour {
   contentid: string;
@@ -23,7 +23,7 @@ const HomePage: React.FC = () => {
         const apiKey =
           "WSCw0k0JOf7SYhiwyAZ1grsvn9QQB3nA%2FPD53LggeDN9G5%2BTQgf46EeKYp%2FLn7jhEsTlHQAht6ahaYGG%2FGwHfg%3D%3D";
         const baseUrl = `http://apis.data.go.kr/B551011/KorService1/areaBasedList1?numOfRows=12&pageNo=1&MobileOS=ETC&MobileApp=AppTest&ServiceKey=${apiKey}&listYN=Y&arrange=A&contentTypeId=15&areaCode=1&sigunguCode=&cat1=A02&cat2=A0208&cat3=A02080200`;
-        const dateUrl = `http://apis.data.go.kr/B551011/KorService1/searchFestival1?eventStartDate=20240717&eventEndDate=20240717&ServiceKey=${apiKey}&listYN=Y&MobileOS=ETC&MobileApp=AppTest&arrange=A`;
+        const dateUrl = `http://apis.data.go.kr/B551011/KorService1/searchFestival1?eventStartDate=20240717&eventEndDate=20240730&ServiceKey=${apiKey}&listYN=Y&MobileOS=ETC&MobileApp=AppTest&arrange=A`;
 
         const getTotalCount = async (url: string) => {
           const res = await fetch(`${url}&numOfRows=1&pageNo=1`);
@@ -64,7 +64,6 @@ const HomePage: React.FC = () => {
         const festivalContentIds = new Set(
           festivalItems.map((item: any) => item.contentid[0])
         );
-
         const filteredTours = areaBasedItems
           .filter((item: any) => festivalContentIds.has(item.contentid[0]))
           .map((item: any) => ({
